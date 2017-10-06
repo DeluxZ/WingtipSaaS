@@ -73,13 +73,13 @@ CREATE TABLE [dbo].[TicketsRawData](
 GO
 
 --Create table for storing raw venues and events data. The schema is defined to include the timestamp column which will not be part of the result returned from job
-IF (OBJECT_ID('VenuesEventsRawData')) IS NOT NULL DROP TABLE VenuesEventsRawData
-CREATE TABLE [dbo].[VenuesEventsRawData](
+IF (OBJECT_ID('EventsRawData')) IS NOT NULL DROP TABLE EventsRawData
+CREATE TABLE [dbo].[EventsRawData](
 	  [VenueId] [int] NULL,
 	  [VenueName] [nvarchar](50) NULL,
 	  [VenueType] [char](30) NULL,
 	  [VenuePostalCode] [char](10) NULL,
-    [VenueCountryCode] [char](3) NULL,
+          [VenueCountryCode] [char](3) NULL,
 	  [VenueCapacity] [int] NULL,
 	  [EventId] [int] NULL,
 	  [EventName] [nvarchar](50) NULL,
@@ -161,7 +161,7 @@ AS
 
 -- Variable to get the max timstamp of the source table
 DECLARE @SourceLastTimestamp binary(8) = (SELECT MAX(Timestamp) FROM  [dbo].[TicketsRawData])
-DECLARE @SourceVELastTimestamp binary(8) = (SELECT MAX(Timestamp) FROM  [dbo].[VenuesEventsRawData])
+DECLARE @SourceVELastTimestamp binary(8) = (SELECT MAX(Timestamp) FROM  [dbo].[EventsRawData])
 
 -- Merge purchase date from raw data to the dimension date table
 MERGE INTO [dbo].[dim_dates] AS [target]
@@ -248,7 +248,7 @@ WHEN NOT MATCHED BY TARGET THEN
 --dim_Events populate
 MERGE INTO [dbo].[dim_Events] AS [target]
 USING (SELECT [VenueId] [int], [EventId], [EventName], [EventSubtitle], [EventDate] 
-       FROM [dbo].[VenuesEventsRawData] VE WHERE Timestamp <= @SourceVELastTimestamp)
+       FROM [dbo].[EventsRawData] VE WHERE Timestamp <= @SourceVELastTimestamp)
 AS source (VenueId, EventId, EventName, EventSubtitle, EventDate) 
 ON ([target].EventId = source.EventId AND [target].VenueId = source.VenueId)
 WHEN MATCHED THEN
@@ -266,7 +266,7 @@ WHEN NOT MATCHED BY TARGET THEN
 -- dim_Venues populate
 MERGE INTO [dbo].[dim_Venues] AS [target]
 USING (SELECT DISTINCT [VenueId], [VenueName], [VenueType], [VenueCapacity], [VenuePostalCode], [VenueCountryCode] 
-	   FROM [dbo].[VenuesEventsRawData] VE WHERE Timestamp <= @SourceVELastTimestamp)
+	   FROM [dbo].[EventsRawData] VE WHERE Timestamp <= @SourceVELastTimestamp)
 AS source (VenueId, VenueName, VenueType, VenueCapacity, VenuePostalCode, VenueCountryCode) 
 ON [target].VenueId = source.VenueId
 WHEN MATCHED THEN
@@ -285,7 +285,7 @@ DELETE FROM TicketsRawData
 WHERE Timestamp <= @SourceLastTimestamp
 
 
-DELETE FROM [dbo].[VenuesEventsRawData]
+DELETE FROM [dbo].[EventsRawData]
 WHERE Timestamp <= @SourceVELastTimestamp
 GO
 "
