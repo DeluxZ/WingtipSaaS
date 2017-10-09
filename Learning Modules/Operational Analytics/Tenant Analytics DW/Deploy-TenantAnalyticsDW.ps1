@@ -75,8 +75,8 @@ CLUSTERED COLUMNSTORE INDEX
 GO
 
 --Create table for storing raw venues and events data. 
-IF (OBJECT_ID('VenuesEventsRawData')) IS NOT NULL DROP TABLE VenuesEventsRawData
-CREATE TABLE [dbo].[VenuesEventsRawData](
+IF (OBJECT_ID('EventsRawData')) IS NOT NULL DROP TABLE EventsRawData
+CREATE TABLE [dbo].[EventsRawData](
 	[VenueId] [int] NULL,
 	[VenueName] [nvarchar](50) NULL,
 	[VenueType] [char](30) NULL,
@@ -164,7 +164,7 @@ AS
 
 -- Variable to get the max ID of the source table
 DECLARE @SourceLastTimestamp binary(8) = (SELECT MAX(RawTicketId) FROM  [dbo].[TicketsRawData])
-DECLARE @SourceVELastTimestamp binary(8) = (SELECT MAX(RawVenueEventId) FROM  [dbo].[VenuesEventsRawData])
+DECLARE @SourceVELastTimestamp binary(8) = (SELECT MAX(RawVenueEventId) FROM  [dbo].[EventsRawData])
 
 --Use CTAs (create table as) for merging the old and new data
 
@@ -245,7 +245,7 @@ SELECT DISTINCT   t.TicketPurchaseId
 				 ,t.RowNumber
 				 ,t.SeatNumber
 FROM [dbo].[TicketsRawData] AS t
-INNER JOIN [dbo].[VenuesEventsRawData] ve on t.VenueId = ve.VenueId AND t.EventId = ve.EventId
+INNER JOIN [dbo].[EventsRawData] ve on t.VenueId = ve.VenueId AND t.EventId = ve.EventId
 WHERE RawTicketId <= @SourceLastTimestamp
 UNION ALL  
 -- Keep rows that are not being touched
@@ -254,7 +254,7 @@ FROM      [dbo].[fact_Tickets] AS ft
 WHERE NOT EXISTS
 (   SELECT   *
     FROM [dbo].[TicketsRawData] t
-INNER JOIN [dbo].[VenuesEventsRawData] ve on t.VenueId = ve.VenueId AND t.EventId = ve.EventId
+INNER JOIN [dbo].[EventsRawData] ve on t.VenueId = ve.VenueId AND t.EventId = ve.EventId
 );
 DROP TABLE [dbo].[fact_Tickets];
 RENAME OBJECT dbo.[stage_fact_Tickets] TO [fact_Tickets];
@@ -267,7 +267,7 @@ WITH (CLUSTERED INDEX(VenueId, EventId), DISTRIBUTION = ROUND_ROBIN)
 AS
 -- New rows and new versions of rows
 SELECT DISTINCT   ve.VenueId, ve.EventId, ve.EventName, ve.EventSubtitle, ve.EventDate
-FROM      [dbo].[VenuesEventsRawData] AS ve
+FROM      [dbo].[EventsRawData] AS ve
 WHERE RawVenueEventId <= @SourceVELastTimestamp
 UNION ALL  
 -- Keep rows that are not being touched
@@ -275,7 +275,7 @@ SELECT      e.VenueId, e.EventId, e.EventName, e.EventSubtitle, e.EventDate
 FROM      [dbo].[dim_Events] AS e
 WHERE NOT EXISTS
 (   SELECT   ve.VenueId, ve.EventId, ve.EventName, ve.EventSubtitle, ve.EventDate
-    FROM     [dbo].[VenuesEventsRawData] ve
+    FROM     [dbo].[EventsRawData] ve
     WHERE   ve.[VenueId] = e.[VenueId] AND ve.[EventId] = e.[EventId]
 );
 DROP TABLE [dbo].[dim_Events];
@@ -289,7 +289,7 @@ WITH (CLUSTERED INDEX(VenueId), DISTRIBUTION = ROUND_ROBIN)
 AS
 -- New rows and new versions of rows
 SELECT DISTINCT    ve.VenueId, ve.VenueName, ve.VenueType, ve.VenueCapacity, ve.VenuePostalCode, ve.VenueCountryCode
-FROM      [dbo].[VenuesEventsRawData] AS ve
+FROM      [dbo].[EventsRawData] AS ve
 WHERE RawVenueEventId <= @SourceVELastTimestamp
 UNION ALL  
 -- Keep rows that are not being touched
@@ -297,7 +297,7 @@ SELECT      v.VenueId, v.VenueName, v.VenueType, v.VenueCapacity, v.VenuePostalC
 FROM      [dbo].[dim_Venues] AS v
 WHERE NOT EXISTS
 (   SELECT   ve.VenueId, ve.VenueName, ve.VenueType, ve.VenueCapacity, ve.VenuePostalCode, ve.VenueCountryCode
-    FROM     [dbo].[VenuesEventsRawData] ve
+    FROM     [dbo].[EventsRawData] ve
     WHERE   ve.[VenueId] = v.[VenueId]
 );
 DROP TABLE [dbo].[dim_Venues];
@@ -310,7 +310,7 @@ DELETE FROM TicketsRawData
 WHERE RawTicketId <= @SourceLastTimestamp
 
 
-DELETE FROM [dbo].[VenuesEventsRawData]
+DELETE FROM [dbo].[EventsRawData]
 WHERE RawVenueEventId <= @SourceVELastTimestamp
 GO
 "
