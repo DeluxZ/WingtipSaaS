@@ -45,7 +45,7 @@ WHERE Lock = ''X''
 @output_credential_name='mydemocred',
 @output_server_name=@server2,
 @output_database_name='tenantanalytics',
-@output_table_name='VenuesEventsRawData'
+@output_table_name='EventsRawData'
 
 -- checking parent job status
 SELECT * FROM [jobs].[job_executions] 
