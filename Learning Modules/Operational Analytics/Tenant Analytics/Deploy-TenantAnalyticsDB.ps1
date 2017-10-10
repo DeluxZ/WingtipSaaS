@@ -169,7 +169,7 @@ CREATE TABLE [dbo].[fact_Tickets](
 	CONSTRAINT [FK_Tickets_PurchaseDateID] FOREIGN KEY ([PurchaseDateID]) REFERENCES [dim_Dates]([PurchaseDateID]),
 	CONSTRAINT [FK_Tickets_EventId] FOREIGN KEY ([VenueId],[EventId]) REFERENCES [dim_Events]([VenueId], [EventId]),
 	CONSTRAINT [FK_Tickets_VenueID] FOREIGN KEY ([VenueID]) REFERENCES [dim_Venues]([VenueID]),
-	CONSTRAINT [FK_Tickets_CustomerEmailId] FOREIGN KEY ([CustomerEmailId]) REFERENCES [dim_Customers]([CustomerEmailId]),
+	CONSTRAINT [FK_Tickets_CustomerEmailId] FOREIGN KEY ([CustomerEmailId]) REFERENCES [dim_Customers]([CustomerEmailId])
 )
 GO
 CREATE UNIQUE INDEX [IX_Id] ON [dbo].[fact_Tickets] (TicketPurchaseId, VenueID,RowNumber,SeatNumber)
