@@ -90,20 +90,6 @@ CREATE TABLE [dbo].[EventsRawData](
     )
 
 --Create fact and dimension tables for the star-schema
--- Create a tickets fact table in tenantanalytics database 
-IF (OBJECT_ID('fact_Tickets')) IS NOT NULL DROP TABLE fact_Tickets
-CREATE TABLE [dbo].[fact_Tickets] 
-		([TicketPurchaseId] [int] NOT NULL,
-		[EventId] [int] NOT NULL,
-		[CustomerEmailId] [int] NOT NULL,
-		[VenueID] [int] NOT NULL,
-		[PurchaseDateID ] [int] NOT NULL,
-		[PurchaseTotal] [money] NOT NULL,
-		[DaysToGo] [int] NOT NULL,
-		[RowNumber] [int] NOT NULL,
-		[SeatNumber] [int] NOT NULL
-    )
-GO
 
 -- Create an event dimension table in tenantanalytics database 
 IF (OBJECT_ID('dim_Events')) IS NOT NULL DROP TABLE dim_Events
@@ -112,8 +98,11 @@ CREATE TABLE [dbo].[dim_Events]
 		[EventId] [int] NOT NULL,
 		[EventName] [nvarchar](50) NOT NULL,
 		[EventSubtitle] [nvarchar](50) NULL,
-		[EventDate] [datetime] NOT NULL
+		[EventDate] [datetime] NOT NULL,
+		PRIMARY KEY CLUSTERED ([VenueId],[EventId])
     )
+GO
+CREATE UNIQUE INDEX [IX_Id] ON [dbo].[dim_Events] (VenueId, EventId)
 GO
 
 -- Create a venue dimension table in tenantanalytics database 
@@ -124,8 +113,11 @@ CREATE TABLE [dbo].[dim_Venues]
 		[VenueType] [char](30) NOT NULL,
 		[VenueCapacity] [int] NOT NULL,
 		[VenuepostalCode] [char](10) NULL,
-		[VenueCountryCode] [char](3) NOT NULL
+		[VenueCountryCode] [char](3) NOT NULL,
+		PRIMARY KEY CLUSTERED ([VenueId] ASC)
     )
+GO
+CREATE UNIQUE INDEX [IX_VenueId] ON [dbo].[dim_Venues] (VenueId)
 GO
 
 -- Create a customer dimension table in tenantanalytics database 
@@ -133,8 +125,11 @@ IF (OBJECT_ID('dim_Customers')) IS NOT NULL DROP TABLE dim_Customers
 CREATE TABLE [dbo].[dim_Customers] 
 		([CustomerEmailId] [int] NOT NULL,
 		[CustomerPostalCode] [char](10) NOT NULL,
-		[CustomerCountryCode] [char](3) NOT NULL
+		[CustomerCountryCode] [char](3) NOT NULL,
+		PRIMARY KEY CLUSTERED ([CustomerEmailId] ASC)
     )
+GO
+CREATE UNIQUE INDEX [IX_Customers_Email] ON [dbo].[dim_Customers] (CustomerEmailId)
 GO
 
 --Create a date dimension table
@@ -152,8 +147,32 @@ CREATE TABLE [dbo].[dim_Dates](
 	  [DateMonthName] [nvarchar](30) NULL,
 	  [DateQuarterName] [nvarchar](31) NULL,
 	  [DateWeekdayName] [nvarchar](30) NULL,
-	  [MonthYear] [nvarchar](34) NULL
+	  [MonthYear] [nvarchar](34) NULL,
+	  PRIMARY KEY CLUSTERED ([PurchaseDateID] ASC)
 )
+GO
+CREATE UNIQUE INDEX [IX_PurchaseDateID] ON [dbo].[dim_Dates] (PurchaseDateID)
+GO
+
+-- Create a tickets fact table in tenantanalytics database 
+IF (OBJECT_ID('fact_Tickets')) IS NOT NULL DROP TABLE fact_Tickets
+CREATE TABLE [dbo].[fact_Tickets](
+	[TicketPurchaseId] [int] NOT NULL,
+	[EventId] [int] NOT NULL,
+	[CustomerEmailId] [int] NOT NULL,
+	[VenueID] [int] NOT NULL,
+	[PurchaseDateID ] [int] NOT NULL,
+	[PurchaseTotal] [money] NOT NULL,
+	[DaysToGo] [int] NOT NULL,
+	[RowNumber] [int] NOT NULL,
+	[SeatNumber] [int] NOT NULL,
+	CONSTRAINT [FK_Tickets_PurchaseDateID] FOREIGN KEY ([PurchaseDateID]) REFERENCES [dim_Dates]([PurchaseDateID]),
+	CONSTRAINT [FK_Tickets_EventId] FOREIGN KEY ([VenueId],[EventId]) REFERENCES [dim_Events]([VenueId], [EventId]),
+	CONSTRAINT [FK_Tickets_VenueID] FOREIGN KEY ([VenueID]) REFERENCES [dim_Venues]([VenueID]),
+	CONSTRAINT [FK_Tickets_CustomerEmailId] FOREIGN KEY ([CustomerEmailId]) REFERENCES [dim_Customers]([CustomerEmailId]),
+)
+GO
+CREATE UNIQUE INDEX [IX_Id] ON [dbo].[fact_Tickets] (TicketPurchaseId, VenueID,RowNumber,SeatNumber)
 GO
 
 CREATE PROCEDURE [dbo].[sp_ShredRawExtractedData]
@@ -226,7 +245,7 @@ USING (SELECT DISTINCT T.TicketPurchaseId
 						,T.RowNumber
 						,T.SeatNumber
 	   FROM [dbo].[TicketsRawData] T 
-	   INNER JOIN [dbo].[VenuesEventsRawData] E on T.VenueId = E.VenueId AND T.EventId = E.EventId
+	   INNER JOIN [dbo].[dim_Events] E on T.VenueId = E.VenueId AND T.EventId = E.EventId
 	   WHERE T.Timestamp <= @SourceLastTimestamp)
 AS source(TicketPurchaseId, EventId, CustomerEmailId, VenueID, PurchaseDateId, PurchaseTotal, DaysToGo,  RowNumber, SeatNumber) 
 ON ([target].TicketPurchaseId = source.TicketPurchaseId AND [target].RowNumber = source.RowNumber AND 
