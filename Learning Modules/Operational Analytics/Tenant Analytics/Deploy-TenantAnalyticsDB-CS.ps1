@@ -75,13 +75,13 @@ ON [TicketsRawData]
 GO
 
 --Create table for storing raw venues and events data. 
-IF (OBJECT_ID('VenuesEventsRawData')) IS NOT NULL DROP TABLE VenuesEventsRawData
-CREATE TABLE [dbo].[VenuesEventsRawData](
+IF (OBJECT_ID('EventsRawData')) IS NOT NULL DROP TABLE EventsRawData
+CREATE TABLE [dbo].[EventsRawData](
 	[VenueId] [int] NULL,
 	[VenueName] [nvarchar](50) NULL,
 	[VenueType] [char](30) NULL,
 	[VenuePostalCode] [char](10) NULL,
-    [VenueCountryCode] [char](3) NULL,
+    	[VenueCountryCode] [char](3) NULL,
 	[VenueCapacity] [int] NULL,
 	[EventId] [int] NULL,
 	[EventName] [nvarchar](50) NULL,
@@ -91,7 +91,7 @@ CREATE TABLE [dbo].[VenuesEventsRawData](
 	[RawVenueEventId] int identity(1,1) NOT NULL
 )
 CREATE CLUSTERED COLUMNSTORE INDEX cci_RawVenuesEvents
-ON [VenuesEventsRawData]
+ON [EventsRawData]
 GO
 
 --Create fact and dimension tables for the star-schema
@@ -99,12 +99,12 @@ GO
 -- Create an event dimension table in tenantanalytics database 
 IF (OBJECT_ID('dim_Events')) IS NOT NULL DROP TABLE dim_Events
 CREATE TABLE [dbo].[dim_Events] 
-						([VenueId] [int] NOT NULL,
-						[EventId] [int] NOT NULL,
-						[EventName] [nvarchar](50) NOT NULL,
-						[EventSubtitle] [nvarchar](50) NULL,
-						[EventDate] [datetime] NOT NULL),
-	                    PRIMARY KEY CLUSTERED ([VenueId],[EventId])
+	([VenueId] [int] NOT NULL,
+	[EventId] [int] NOT NULL,
+	[EventName] [nvarchar](50) NOT NULL,
+	[EventSubtitle] [nvarchar](50) NULL,
+	[EventDate] [datetime] NOT NULL),
+	PRIMARY KEY CLUSTERED ([VenueId],[EventId])
 GO
 CREATE UNIQUE INDEX [IX_Id] ON [dbo].[dim_Events] (VenueId, EventId)
 GO
@@ -112,13 +112,13 @@ GO
 -- Create a venue dimension table in tenantanalytics database 
 IF (OBJECT_ID('dim_Venues')) IS NOT NULL DROP TABLE dim_Venues
 CREATE TABLE [dbo].[dim_Venues] 
-						([VenueId] [int] NOT NULL,
-						[VenueName] [nvarchar](50) NOT NULL,
-						[VenueType] [char](30) NOT NULL,
-						[VenueCapacity] [int] NOT NULL,
-						[VenuepostalCode] [char](10) NULL,
-						[VenueCountryCode] [char](3) NOT NULL,
-	                    PRIMARY KEY CLUSTERED ([VenueId] ASC)
+	([VenueId] [int] NOT NULL,
+	[VenueName] [nvarchar](50) NOT NULL,
+	[VenueType] [char](30) NOT NULL,
+	[VenueCapacity] [int] NOT NULL,
+	[VenuepostalCode] [char](10) NULL,
+	[VenueCountryCode] [char](3) NOT NULL,
+	PRIMARY KEY CLUSTERED ([VenueId] ASC)
 )
 GO
 CREATE UNIQUE INDEX [IX_VenueId] ON [dbo].[dim_Venues] (VenueId)
@@ -127,10 +127,10 @@ GO
 -- Create a customer dimension table in tenantanalytics database 
 IF (OBJECT_ID('dim_Customers')) IS NOT NULL DROP TABLE dim_Customers
 CREATE TABLE [dbo].[dim_Customers] 
-						([CustomerEmailId] [int] NOT NULL,
-						[CustomerPostalCode] [char](10) NOT NULL,
-						[CustomerCountryCode] [char](3) NOT NULL,
-	                    PRIMARY KEY CLUSTERED ([CustomerEmailId] ASC)
+	([CustomerEmailId] [int] NOT NULL,
+	[CustomerPostalCode] [char](10) NOT NULL,
+	[CustomerCountryCode] [char](3) NOT NULL,
+	PRIMARY KEY CLUSTERED ([CustomerEmailId] ASC)
 )
 GO
 CREATE UNIQUE INDEX [IX_Customers_Email] ON [dbo].[dim_Customers] (CustomerEmailId)
@@ -161,19 +161,19 @@ GO
 -- Create a tickets fact table in tenantanalytics database 
 IF (OBJECT_ID('fact_Tickets')) IS NOT NULL DROP TABLE fact_Tickets
 CREATE TABLE [dbo].[fact_Tickets] 
-						([TicketPurchaseId] [int] NOT NULL,
-						[EventId] [int] NOT NULL,
-						[CustomerEmailId] [int] NOT NULL,
-						[VenueID] [int] NOT NULL,
-						[PurchaseDateID ] [int] NOT NULL,
-						[PurchaseTotal] [money] NOT NULL,
-						[DaysToGo] [int] NOT NULL,
-						[RowNumber] [int] NOT NULL,
-						[SeatNumber] [int] NOT NULL,
-	                    CONSTRAINT [FK_Tickets_PurchaseDateID] FOREIGN KEY ([PurchaseDateID]) REFERENCES [dim_Dates]([PurchaseDateID]),
-	                    CONSTRAINT [FK_Tickets_EventId] FOREIGN KEY ([VenueId],[EventId]) REFERENCES [dim_Events]([VenueId], [EventId]),
-	                    CONSTRAINT [FK_Tickets_VenueID] FOREIGN KEY ([VenueID]) REFERENCES [dim_Venues]([VenueID]),
-	                    CONSTRAINT [FK_Tickets_CustomerEmailId] FOREIGN KEY ([CustomerEmailId]) REFERENCES [dim_Customers]([CustomerEmailId])
+	([TicketPurchaseId] [int] NOT NULL,
+	[EventId] [int] NOT NULL,
+	[CustomerEmailId] [int] NOT NULL,
+	[VenueID] [int] NOT NULL,
+	[PurchaseDateID ] [int] NOT NULL,
+	[PurchaseTotal] [money] NOT NULL,
+	[DaysToGo] [int] NOT NULL,
+	[RowNumber] [int] NOT NULL,
+	[SeatNumber] [int] NOT NULL,
+	CONSTRAINT [FK_Tickets_PurchaseDateID] FOREIGN KEY ([PurchaseDateID]) REFERENCES [dim_Dates]([PurchaseDateID]),
+	CONSTRAINT [FK_Tickets_EventId] FOREIGN KEY ([VenueId],[EventId]) REFERENCES [dim_Events]([VenueId], [EventId]),
+	CONSTRAINT [FK_Tickets_VenueID] FOREIGN KEY ([VenueID]) REFERENCES [dim_Venues]([VenueID]),
+	CONSTRAINT [FK_Tickets_CustomerEmailId] FOREIGN KEY ([CustomerEmailId]) REFERENCES [dim_Customers]([CustomerEmailId])
 )
 GO
 CREATE CLUSTERED COLUMNSTORE INDEX cci_fact_Tickets
@@ -185,7 +185,7 @@ AS
 
 -- Variable to get the max timstamp of the source table
 DECLARE @SourceLastTimestamp binary(8) = (SELECT MAX(RawTicketId) FROM  [dbo].[TicketsRawData])
-DECLARE @SourceVELastTimestamp binary(8) = (SELECT MAX(RawVenueEventId) FROM  [dbo].[VenuesEventsRawData])
+DECLARE @SourceVELastTimestamp binary(8) = (SELECT MAX(RawVenueEventId) FROM  [dbo].[EventsRawData])
 
 -- Merge purchase date from raw data to the dimension date table
 MERGE INTO [dbo].[dim_dates] AS [target]
@@ -241,14 +241,14 @@ WHEN NOT MATCHED BY TARGET THEN
 -- Merge tickets from raw data to the fact table
 MERGE INTO [dbo].[fact_Tickets] AS [target]
 USING (SELECT DISTINCT T.TicketPurchaseId
-						,T.EventId
-						,T.CustomerEmailId	
-						,T.VenueId
-						,PurchaseDateId = cast(replace(cast(convert(date, T.PurchaseDate) as varchar(25)),'-','')as int)
-						,T.PurchaseTotal			
-						,DaysToGo =  DATEDIFF(d, CAST(T.PurchaseDate AS DATE), CAST(E.EventDate AS DATE))
-						,T.RowNumber
-						,T.SeatNumber
+			,T.EventId
+			,T.CustomerEmailId	
+			,T.VenueId
+			,PurchaseDateId = cast(replace(cast(convert(date, T.PurchaseDate) as varchar(25)),'-','')as int)
+			,T.PurchaseTotal			
+			,DaysToGo =  DATEDIFF(d, CAST(T.PurchaseDate AS DATE), CAST(E.EventDate AS DATE))
+			,T.RowNumber
+			,T.SeatNumber
 	   FROM [dbo].[TicketsRawData] T 
 	   INNER JOIN [dbo].[dim_Events] E on T.VenueId = E.VenueId AND T.EventId = E.EventId
 	   WHERE T.RawTicketId <= @SourceLastTimestamp)
@@ -272,7 +272,7 @@ WHEN NOT MATCHED BY TARGET THEN
 --dim_Events populate
 MERGE INTO [dbo].[dim_Events] AS [target]
 USING (SELECT [VenueId] [int], [EventId], [EventName], [EventSubtitle], [EventDate] 
-       FROM [dbo].[VenuesEventsRawData] VE WHERE RawVenueEventId <= @SourceVELastTimestamp)
+       FROM [dbo].[EventsRawData] VE WHERE RawVenueEventId <= @SourceVELastTimestamp)
 AS source (VenueId, EventId, EventName, EventSubtitle, EventDate) 
 ON ([target].EventId = source.EventId AND [target].VenueId = source.VenueId)
 WHEN MATCHED THEN
@@ -290,7 +290,7 @@ WHEN NOT MATCHED BY TARGET THEN
 -- dim_Venues populate
 MERGE INTO [dbo].[dim_Venues] AS [target]
 USING (SELECT DISTINCT [VenueId], [VenueName], [VenueType], [VenueCapacity], [VenuePostalCode], [VenueCountryCode] 
-	   FROM [dbo].[VenuesEventsRawData] VE WHERE RawVenueEventId <= @SourceVELastTimestamp)
+	   FROM [dbo].[EventsRawData] VE WHERE RawVenueEventId <= @SourceVELastTimestamp)
 AS source (VenueId, VenueName, VenueType, VenueCapacity, VenuePostalCode, VenueCountryCode) 
 ON [target].VenueId = source.VenueId
 WHEN MATCHED THEN
@@ -307,7 +307,6 @@ WHEN NOT MATCHED BY TARGET THEN
 --Delete the rows in the source table already shredded
 DELETE FROM TicketsRawData
 WHERE RawTicketId <= @SourceLastTimestamp
-
 
 DELETE FROM [dbo].[VenuesEventsRawData]
 WHERE RawVenueEventId <= @SourceVELastTimestamp
